@@ -3,9 +3,9 @@ import * as path from 'path'
 
 interface Option<T> {
   name: string,            // 名称
+  describe?: string        // 参数描述
   required?: boolean,      // 是否必须，默认视为否
   default?: T,             // 默认值，仅在 required 为 false 时有意义
-  describe?: string        // 参数描述
 }
 
 interface Flag extends Option<Boolean> {
@@ -82,6 +82,8 @@ class Command<ArgT> {
     // name 为一个字符时，自动设为 short
     if (def.name.length === 1 && !def.short) def = { ...def, short: def.name }
     this._confirmUnique(def)
+    // flag 不可设为必填、默认值固定为 false
+    def = { ...def, required: false, default: false }
     this.options.flag.push(def)
     return this
   }
@@ -158,18 +160,16 @@ class Command<ArgT> {
     while(argv.length) {
       const item = argv.shift() as string
       if (item.startsWith('-')) {
-        const flag = this.matchFlagOrNamed(item, this.options.flag)
+        const flag = this.matchFlag(item)
         if (flag) {
           matched[flag.name] = true
           continue
         }
 
-        if (argv.length) {  // argv 有后续值才有可能完成 named 参数的匹配
-          const named = this.matchFlagOrNamed(item, this.options.named)
-          if (named) {
-            matched[named.value || named.name] = this.parseValue(argv.shift() as string, named)
-            continue
-          }
+        const [named, value] = this.matchNamed(item, argv)
+        if (named) {
+          matched[named.value || named.name] = this.parseValue(value as string, named)
+          continue
         }
       }
 
@@ -209,14 +209,31 @@ class Command<ArgT> {
     return matched as ArgT
   }
 
-  matchFlagOrNamed(arg: string, options: Flag[]): Flag | null
-  matchFlagOrNamed<T>(arg: string, options: Named<T>[]): Named<T> | null
-  matchFlagOrNamed<T>(arg: string, options: Flag[] | Named<T>[]) {
+  matchFlag(arg: string): Flag | null {
     const [name, long] = arg.startsWith('--') ? [arg.slice(2), true] : [arg.slice(1), false]
-    for(const opt of options) {
+    for(const opt of this.options.flag) {
       if (long ? opt.name === name : opt.short === name) return opt
     }
     return null
+  }
+  matchNamed(arg: string, restArgs: string[]): [Named<any>, string] | [null, null] {
+    if (arg.startsWith('--')) { // --name=value
+      const splitIdx = arg.indexOf('=')
+      if (splitIdx === -1) return [null, null]  // 未匹配到等号，不是 named 参数
+
+      const name = arg.slice(2, splitIdx)
+      const value = arg.slice(splitIdx + 1)
+      for(const opt of this.options.named) {
+        if (opt.name === name) return [opt, value]
+      }
+    } else {  // -n value
+      const name = arg.slice(1)
+      if (!restArgs.length) return [null, null] // 后续已没有值，无法成功匹配成 named
+      for(const opt of this.options.named) {
+        if (opt.short === name) return [opt, restArgs.shift() as string]  // 这里直接修改 resetArgs 来提取 value 了，因为 value 不应再参与接下来的匹配
+      }
+    }
+    return [null, null]
   }
 
   parseValue<T>(rawValue: string, opt: Named<T> | Pos<T> | Rest<T>): T | string {
@@ -236,10 +253,12 @@ class Command<ArgT> {
     console.log('')
     if (!this.subCommands.length) {
       console.log(`Usage: ${this.execPath} ${this.optionOverview}`)
+      if (this.desc) console.log('\n' + this.desc)
       const desc = this.optionDescribes
       if (desc) console.log(`\nOptions:\n\n${desc}`)
     } else {
       console.log(`Usage: ${this.execPath} [command] [arguments]`)
+      if (this.desc) console.log('\n' + this.desc)
       console.log(`\nCommands:\n\n${this.commandDescribes}`)
     }
     console.log('')

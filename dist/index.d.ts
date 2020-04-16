@@ -1,8 +1,8 @@
 interface Option<T> {
     name: string;
+    describe?: string;
     required?: boolean;
     default?: T;
-    describe?: string;
 }
 interface Flag extends Option<Boolean> {
     short?: string;
@@ -49,8 +49,8 @@ declare class Command<ArgT> {
     _confirmUnique<T>(opt: Flag | Named<T> | Pos<T> | Rest<T>): void;
     parse(argv: string[]): ParsedArguments | null;
     matchArgs(argv: string[]): ArgT;
-    matchFlagOrNamed(arg: string, options: Flag[]): Flag | null;
-    matchFlagOrNamed<T>(arg: string, options: Named<T>[]): Named<T> | null;
+    matchFlag(arg: string): Flag | null;
+    matchNamed(arg: string, restArgs: string[]): [Named<any>, string] | [null, null];
     parseValue<T>(rawValue: string, opt: Named<T> | Pos<T> | Rest<T>): T | string;
     help(exitCode?: number): any;
     get execPath(): string;

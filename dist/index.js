@@ -36,6 +36,8 @@ class Command {
         if (def.name.length === 1 && !def.short)
             def = Object.assign(Object.assign({}, def), { short: def.name });
         this._confirmUnique(def);
+        // flag 不可设为必填、默认值固定为 false
+        def = Object.assign(Object.assign({}, def), { required: false, default: false });
         this.options.flag.push(def);
         return this;
     }
@@ -116,17 +118,15 @@ class Command {
         while (argv.length) {
             const item = argv.shift();
             if (item.startsWith('-')) {
-                const flag = this.matchFlagOrNamed(item, this.options.flag);
+                const flag = this.matchFlag(item);
                 if (flag) {
                     matched[flag.name] = true;
                     continue;
                 }
-                if (argv.length) { // argv 有后续值才有可能完成 named 参数的匹配
-                    const named = this.matchFlagOrNamed(item, this.options.named);
-                    if (named) {
-                        matched[named.value || named.name] = this.parseValue(argv.shift(), named);
-                        continue;
-                    }
+                const [named, value] = this.matchNamed(item, argv);
+                if (named) {
+                    matched[named.value || named.name] = this.parseValue(value, named);
+                    continue;
                 }
             }
             // 值不以 - 开头，或没有匹配上任何 flag、named 参数，则视为 positional 参数
@@ -163,13 +163,36 @@ class Command {
         });
         return matched;
     }
-    matchFlagOrNamed(arg, options) {
+    matchFlag(arg) {
         const [name, long] = arg.startsWith('--') ? [arg.slice(2), true] : [arg.slice(1), false];
-        for (const opt of options) {
+        for (const opt of this.options.flag) {
             if (long ? opt.name === name : opt.short === name)
                 return opt;
         }
         return null;
+    }
+    matchNamed(arg, restArgs) {
+        if (arg.startsWith('--')) { // --name=value
+            const splitIdx = arg.indexOf('=');
+            if (splitIdx === -1)
+                return [null, null]; // 未匹配到等号，不是 named 参数
+            const name = arg.slice(2, splitIdx);
+            const value = arg.slice(splitIdx + 1);
+            for (const opt of this.options.named) {
+                if (opt.name === name)
+                    return [opt, value];
+            }
+        }
+        else { // -n value
+            const name = arg.slice(1);
+            if (!restArgs.length)
+                return [null, null]; // 后续已没有值，无法成功匹配成 named
+            for (const opt of this.options.named) {
+                if (opt.short === name)
+                    return [opt, restArgs.shift()]; // 这里直接修改 resetArgs 来提取 value 了，因为 value 不应再参与接下来的匹配
+            }
+        }
+        return [null, null];
     }
     parseValue(rawValue, opt) {
         try {
@@ -186,12 +209,16 @@ class Command {
         console.log('');
         if (!this.subCommands.length) {
             console.log(`Usage: ${this.execPath} ${this.optionOverview}`);
+            if (this.desc)
+                console.log('\n' + this.desc);
             const desc = this.optionDescribes;
             if (desc)
                 console.log(`\nOptions:\n\n${desc}`);
         }
         else {
             console.log(`Usage: ${this.execPath} [command] [arguments]`);
+            if (this.desc)
+                console.log('\n' + this.desc);
             console.log(`\nCommands:\n\n${this.commandDescribes}`);
         }
         console.log('');
