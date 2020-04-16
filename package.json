@@ -1,0 +1,18 @@
+{
+  "name": "quick-args",
+  "version": "0.0.1",
+  "description": "Easy parse arguments",
+  "homepage": "https://github.com/anjianshi/quick-args",
+  "repository": "https://github.com/anjianshi/quick-args.git",
+  "author": "anjianshi",
+  "main": "dist/index.js",
+  "scripts": {
+    "watch": "npm run clear && tsc --watch",
+    "build": "npm run clear && tsc",
+    "clear": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^13.11.1",
+    "typescript": "^3.8.3"
+  }
+}
