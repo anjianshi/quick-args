@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import * as path from 'path'
 
 
@@ -29,10 +28,10 @@ interface Rest<T> extends Option<T[]> {
   parse?: (raw: string) => T,  // 值格式化函数，抛出异常代表格式化失败
 }
 
-interface CommandDef {
+interface CommandDef<ArgT> {
   name: string,
   describe?: string,
-  handler?: (args: ParsedArguments) => void
+  handler?: (args: ArgT) => void
 }
 
 type ParsedArguments = { [key: string]: any }
@@ -43,13 +42,13 @@ function combine(...arrayList: any[][]) {
 }
 
 
-class Command {
+class Command<ArgT> {
   name: string
   desc: string
-  handler: ((args: ParsedArguments) => void) | null
-  superCommand: Command | null = null    // 根节点此值为 null
+  cmdHandler: ((args: ArgT) => void) | null
+  superCommand: Command<any> | null = null    // 根节点此值为 null
 
-  subCommands: Command[] = []
+  subCommands: Command<any>[] = []
 
   options: { flag: Flag[], named: Named<any>[], pos: Pos<any>[], rest: Rest<any> | null } = {
     flag: [],
@@ -58,21 +57,25 @@ class Command {
     rest: null
   }
 
-  constructor(def: CommandDef) {
+  constructor(def: CommandDef<ArgT>) {
     this.name = def.name
     this.desc = def.describe || ''
-    this.handler = def.handler || null
+    this.cmdHandler = def.handler || null
   }
 
   // ===== register =====
 
-  command(subCommand: Command) {
+  command(subCommand: Command<any>) {
     this.subCommands.push(subCommand)
     subCommand._registerToSuper(this)
     return this
   }
-  _registerToSuper(superCommand: Command) {
+  _registerToSuper(superCommand: Command<any>) {
     this.superCommand = superCommand
+  }
+  handler(handler: (args: ArgT) => void) {
+    this.cmdHandler = handler
+    return this
   }
 
   flag(def: Flag) {
@@ -137,7 +140,7 @@ class Command {
 
     // 最底级子命令
     if (this.superCommand) {
-      if (this.handler) this.handler(this.matchArgs(argv))
+      if (this.cmdHandler) this.cmdHandler(this.matchArgs(argv))
       else console.warn(`命令 "${this.execPath}" 未设置 handler！`)
       return null
     }
@@ -146,11 +149,7 @@ class Command {
     return this.matchArgs(argv)
   }
 
-  matchArgs(argv: string[]): ParsedArguments {
-    // flag
-    // named
-    // pos
-    // rest
+  matchArgs(argv: string[]): ArgT {
     const matched: ParsedArguments = {}
     const posValues = []  // positional 参数值先收集到一起，等 flag、named option 匹配完再处理
     argv = [...argv]
@@ -207,7 +206,7 @@ class Command {
       }
     })
 
-    return matched
+    return matched as ArgT
   }
 
   matchFlagOrNamed(arg: string, options: Flag[]): Flag | null
@@ -282,11 +281,11 @@ class Command {
   }
 
   get commandDescribes() {
-    return this.subCommands.map(cmd => `  - ${cmd.name}\t\t${cmd.desc}`)
+    return this.subCommands.map(cmd => `  - ${cmd.name}\t\t${cmd.desc}`).join('\n')
   }
 }
 
-class Program extends Command {
+class Program extends Command<ParsedArguments> {
   constructor() {
     super({
       name: process.env._ ? path.basename(process.env._) : process.argv[1],
@@ -295,6 +294,7 @@ class Program extends Command {
 
   program(name: string) {
     this.name = name
+    return this
   }
 
   describe(desc: string) {
@@ -309,4 +309,4 @@ class Program extends Command {
 
 
 export default new Program()
-export { Command }
+export { Command, ParsedArguments as Arguments }

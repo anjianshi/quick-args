@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 interface Option<T> {
     name: string;
     required?: boolean;
@@ -19,36 +18,37 @@ interface Pos<T> extends Option<T> {
 interface Rest<T> extends Option<T[]> {
     parse?: (raw: string) => T;
 }
-interface CommandDef {
+interface CommandDef<ArgT> {
     name: string;
     describe?: string;
-    handler?: (args: ParsedArguments) => void;
+    handler?: (args: ArgT) => void;
 }
 declare type ParsedArguments = {
     [key: string]: any;
 };
-declare class Command {
+declare class Command<ArgT> {
     name: string;
     desc: string;
-    handler: ((args: ParsedArguments) => void) | null;
-    superCommand: Command | null;
-    subCommands: Command[];
+    cmdHandler: ((args: ArgT) => void) | null;
+    superCommand: Command<any> | null;
+    subCommands: Command<any>[];
     options: {
         flag: Flag[];
         named: Named<any>[];
         pos: Pos<any>[];
         rest: Rest<any> | null;
     };
-    constructor(def: CommandDef);
-    command(subCommand: Command): this;
-    _registerToSuper(superCommand: Command): void;
+    constructor(def: CommandDef<ArgT>);
+    command(subCommand: Command<any>): this;
+    _registerToSuper(superCommand: Command<any>): void;
+    handler(handler: (args: ArgT) => void): this;
     flag(def: Flag): this;
     named<T>(def: Named<T>): this;
     pos<T>(def: Pos<T>): this;
     rest<T>(def: Rest<T>): this;
     _confirmUnique<T>(opt: Flag | Named<T> | Pos<T> | Rest<T>): void;
     parse(argv: string[]): ParsedArguments | null;
-    matchArgs(argv: string[]): ParsedArguments;
+    matchArgs(argv: string[]): ArgT;
     matchFlagOrNamed(arg: string, options: Flag[]): Flag | null;
     matchFlagOrNamed<T>(arg: string, options: Named<T>[]): Named<T> | null;
     parseValue<T>(rawValue: string, opt: Named<T> | Pos<T> | Rest<T>): T | string;
@@ -56,14 +56,14 @@ declare class Command {
     get execPath(): string;
     get optionOverview(): string;
     get optionDescribes(): string;
-    get commandDescribes(): string[];
+    get commandDescribes(): string;
 }
-declare class Program extends Command {
+declare class Program extends Command<ParsedArguments> {
     constructor();
-    program(name: string): void;
+    program(name: string): this;
     describe(desc: string): this;
     parse(): ParsedArguments | null;
 }
 declare const _default: Program;
 export default _default;
-export { Command };
+export { Command, ParsedArguments as Arguments };

@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const path = require("path");
@@ -17,7 +16,7 @@ class Command {
         };
         this.name = def.name;
         this.desc = def.describe || '';
-        this.handler = def.handler || null;
+        this.cmdHandler = def.handler || null;
     }
     // ===== register =====
     command(subCommand) {
@@ -27,6 +26,10 @@ class Command {
     }
     _registerToSuper(superCommand) {
         this.superCommand = superCommand;
+    }
+    handler(handler) {
+        this.cmdHandler = handler;
+        return this;
     }
     flag(def) {
         // name 为一个字符时，自动设为 short
@@ -96,8 +99,8 @@ class Command {
         }
         // 最底级子命令
         if (this.superCommand) {
-            if (this.handler)
-                this.handler(this.matchArgs(argv));
+            if (this.cmdHandler)
+                this.cmdHandler(this.matchArgs(argv));
             else
                 console.warn(`命令 "${this.execPath}" 未设置 handler！`);
             return null;
@@ -106,10 +109,6 @@ class Command {
         return this.matchArgs(argv);
     }
     matchArgs(argv) {
-        // flag
-        // named
-        // pos
-        // rest
         const matched = {};
         const posValues = []; // positional 参数值先收集到一起，等 flag、named option 匹配完再处理
         argv = [...argv];
@@ -230,7 +229,7 @@ class Command {
         return items.map(i => fill(i)).join('\n');
     }
     get commandDescribes() {
-        return this.subCommands.map(cmd => `  - ${cmd.name}\t\t${cmd.desc}`);
+        return this.subCommands.map(cmd => `  - ${cmd.name}\t\t${cmd.desc}`).join('\n');
     }
 }
 exports.Command = Command;
@@ -242,6 +241,7 @@ class Program extends Command {
     }
     program(name) {
         this.name = name;
+        return this;
     }
     describe(desc) {
         this.desc = desc;
