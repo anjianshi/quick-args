@@ -1,6 +1,6 @@
 {
   "name": "quick-args",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Easy parse arguments",
   "homepage": "https://github.com/anjianshi/quick-args",
   "repository": "https://github.com/anjianshi/quick-args.git",
