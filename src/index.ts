@@ -3,12 +3,12 @@ import * as path from 'path'
 
 interface Option<T> {
   name: string,            // 名称
-  describe?: string        // 参数描述
+  describe?: string,       // 参数描述
   required?: boolean,      // 是否必须，默认视为否
   default?: T,             // 默认值，仅在 required 为 false 时有意义
 }
 
-interface Flag extends Option<Boolean> {
+interface Flag extends Option<boolean> {
   short?: string,          // 短名称
 }
 
@@ -31,7 +31,7 @@ interface Rest<T> extends Option<T[]> {
 interface CommandDef<ArgT> {
   name: string,
   describe?: string,
-  handler?: (args: ArgT) => void
+  handler?: (args: ArgT) => void,
 }
 
 type ParsedArguments = { [key: string]: any }
@@ -120,6 +120,8 @@ class Command<ArgT> {
       if (named.find(o => o.value === opt.value)) return console.warn(`参数 "${opt.name}" 的 value "${opt.value}" 与其他 named option 的 value 重名`)
       if (combine(flag, named, pos, rest ? [rest] : []).find(o => o.name === opt.value)) return console.warn(`参数 ${opt.name} 的 value "${opt.value}" 与其他 option 的 name 重名`)
     } else if (named.find(o => o.value === opt.name)) return console.warn(`参数 "${opt.name}" 与其他 named option 的 value 重名`)
+
+    return undefined
   }
 
   // ===== parse =====
@@ -157,7 +159,7 @@ class Command<ArgT> {
     argv = [...argv]
 
     // 匹配 flag 和 named option
-    while(argv.length) {
+    while (argv.length) {
       const item = argv.shift() as string
       if (item.startsWith('-')) {
         const flag = this.matchFlag(item)
@@ -178,7 +180,7 @@ class Command<ArgT> {
     }
 
     // 匹配 positional option
-    for(const pos of this.options.pos) {
+    for (const pos of this.options.pos) {
       if (!posValues.length) break
       matched[pos.name] = this.parseValue(posValues.shift() as string, pos)
     }
@@ -187,7 +189,7 @@ class Command<ArgT> {
       // 余下的 posValues 归入 rest
       const rest = this.options.rest
       if (rest) {
-          matched[rest.name] = posValues.map(v => this.parseValue(v, rest))
+        matched[rest.name] = posValues.map(v => this.parseValue(v, rest))
       } else {
         console.warn(`多余的 positional 参数：${posValues.join(' ')}`)
       }
@@ -211,7 +213,7 @@ class Command<ArgT> {
 
   matchFlag(arg: string): Flag | null {
     const [name, long] = arg.startsWith('--') ? [arg.slice(2), true] : [arg.slice(1), false]
-    for(const opt of this.options.flag) {
+    for (const opt of this.options.flag) {
       if (long ? opt.name === name : opt.short === name) return opt
     }
     return null
@@ -223,13 +225,13 @@ class Command<ArgT> {
 
       const name = arg.slice(2, splitIdx)
       const value = arg.slice(splitIdx + 1)
-      for(const opt of this.options.named) {
+      for (const opt of this.options.named) {
         if (opt.name === name) return [opt, value]
       }
     } else {  // -n value
       const name = arg.slice(1)
       if (!restArgs.length) return [null, null] // 后续已没有值，无法成功匹配成 named
-      for(const opt of this.options.named) {
+      for (const opt of this.options.named) {
         if (opt.short === name) return [opt, restArgs.shift() as string]  // 这里直接修改 resetArgs 来提取 value 了，因为 value 不应再参与接下来的匹配
       }
     }
@@ -239,7 +241,7 @@ class Command<ArgT> {
   parseValue<T>(rawValue: string, opt: Named<T> | Pos<T> | Rest<T>): T | string {
     try {
       return opt.parse ? opt.parse(rawValue) : rawValue
-    } catch(e) {
+    } catch (e) {
       console.error(`参数值格式化失败（${opt.name}）：${rawValue}`)
       console.error(e)
       return this.help(1)
@@ -253,12 +255,12 @@ class Command<ArgT> {
     console.log('')
     if (!this.subCommands.length) {
       console.log(`Usage: ${this.execPath} ${this.optionOverview}`)
-      if (this.desc) console.log('\n' + this.desc)
+      if (this.desc) console.log(`\n${this.desc}`)
       const desc = this.optionDescribes
       if (desc) console.log(`\nOptions:\n\n${desc}`)
     } else {
       console.log(`Usage: ${this.execPath} [command] [arguments]`)
-      if (this.desc) console.log('\n' + this.desc)
+      if (this.desc) console.log(`\n${this.desc}`)
       console.log(`\nCommands:\n\n${this.commandDescribes}`)
     }
     console.log('')
@@ -266,12 +268,12 @@ class Command<ArgT> {
   }
 
   get execPath(): string {
-    return (this.superCommand ? this.superCommand.execPath + ' ' : '') + this.name
+    return (this.superCommand ? `${this.superCommand.execPath} ` : '') + this.name
   }
 
   get optionOverview() {
     const { flag, named, pos, rest } = this.options
-    const decorate = (o: Option<any>, text: string) => o.required ? text : `[${text}]`
+    const decorate = (o: Option<any>, text: string) => (o.required ? text : `[${text}]`)
     const items = [
       ...flag.map(o => decorate(o, o.short ? `-${o.short}` : `--${o.name}`)),
       ...named.map(o => decorate(o, o.short ? `-${o.short} ${o.value || 'value'}` : `--${o.name}=${o.value || 'value'}`)),
@@ -285,7 +287,7 @@ class Command<ArgT> {
     const { flag, named, pos, rest } = this.options
     const clear = <T>(list: (T|undefined|null)[]): T[] => list.filter(o => o) as T[]
     const flagName = (o: Flag) => clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(', ')
-    const namedName = (o: Named<any>) => clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(' ') + `<${o.value || 'value'}>`
+    const namedName = (o: Named<any>) => `${clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(' ')}<${o.value || 'value'}>`
     const items = clear([
       ...flag.map(o => [o, flagName(o)]),
       ...named.map(o => [o, namedName(o)]),
@@ -294,8 +296,8 @@ class Command<ArgT> {
     ]) as [Option<any>, string][]
 
     const longestName = items.map(o => o[1]).reduce((longest, name) => Math.max(longest, name.length), 0)
-    const space = (len: number): string => len ? ' ' + space(len-1) : ''
-    const fill = ([o, text]: [Option<any>, string]) => '  ' + text + space(longestName - text.length + 4) + (o.required ? '[required] ' : '') + (o.describe || '')
+    const space = (len: number): string => (len ? ` ${space(len-1)}` : '')
+    const fill = ([o, text]: [Option<any>, string]) => `  ${text}${space(longestName - text.length + 4)}${o.required ? '[required] ' : '' }${o.describe || ''}`
     return items.map(i => fill(i)).join('\n')
   }
 
