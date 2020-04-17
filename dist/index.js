@@ -82,6 +82,7 @@ class Command {
         }
         else if (named.find(o => o.value === opt.name))
             return console.warn(`参数 "${opt.name}" 与其他 named option 的 value 重名`);
+        return undefined;
     }
     // ===== parse =====
     parse(argv) {
@@ -210,7 +211,7 @@ class Command {
         if (!this.subCommands.length) {
             console.log(`Usage: ${this.execPath} ${this.optionOverview}`);
             if (this.desc)
-                console.log('\n' + this.desc);
+                console.log(`\n${this.desc}`);
             const desc = this.optionDescribes;
             if (desc)
                 console.log(`\nOptions:\n\n${desc}`);
@@ -218,18 +219,18 @@ class Command {
         else {
             console.log(`Usage: ${this.execPath} [command] [arguments]`);
             if (this.desc)
-                console.log('\n' + this.desc);
+                console.log(`\n${this.desc}`);
             console.log(`\nCommands:\n\n${this.commandDescribes}`);
         }
         console.log('');
         process.exit(exitCode);
     }
     get execPath() {
-        return (this.superCommand ? this.superCommand.execPath + ' ' : '') + this.name;
+        return (this.superCommand ? `${this.superCommand.execPath} ` : '') + this.name;
     }
     get optionOverview() {
         const { flag, named, pos, rest } = this.options;
-        const decorate = (o, text) => o.required ? text : `[${text}]`;
+        const decorate = (o, text) => (o.required ? text : `[${text}]`);
         const items = [
             ...flag.map(o => decorate(o, o.short ? `-${o.short}` : `--${o.name}`)),
             ...named.map(o => decorate(o, o.short ? `-${o.short} ${o.value || 'value'}` : `--${o.name}=${o.value || 'value'}`)),
@@ -243,7 +244,7 @@ class Command {
         const { flag, named, pos, rest } = this.options;
         const clear = (list) => list.filter(o => o);
         const flagName = (o) => clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(', ');
-        const namedName = (o) => clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(' ') + `<${o.value || 'value'}>`;
+        const namedName = (o) => `${clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(' ')}<${o.value || 'value'}>`;
         const items = clear([
             ...flag.map(o => [o, flagName(o)]),
             ...named.map(o => [o, namedName(o)]),
@@ -251,8 +252,8 @@ class Command {
             rest && [rest, `...${rest.name}`]
         ]);
         const longestName = items.map(o => o[1]).reduce((longest, name) => Math.max(longest, name.length), 0);
-        const space = (len) => len ? ' ' + space(len - 1) : '';
-        const fill = ([o, text]) => '  ' + text + space(longestName - text.length + 4) + (o.required ? '[required] ' : '') + (o.describe || '');
+        const space = (len) => (len ? ` ${space(len - 1)}` : '');
+        const fill = ([o, text]) => `  ${text}${space(longestName - text.length + 4)}${o.required ? '[required] ' : ''}${o.describe || ''}`;
         return items.map(i => fill(i)).join('\n');
     }
     get commandDescribes() {

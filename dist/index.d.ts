@@ -4,7 +4,7 @@ interface Option<T> {
     required?: boolean;
     default?: T;
 }
-interface Flag extends Option<Boolean> {
+interface Flag extends Option<boolean> {
     short?: string;
 }
 interface Named<T> extends Option<T> {
