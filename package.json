@@ -1,10 +1,11 @@
 {
   "name": "quick-args",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Easy parse arguments",
   "homepage": "https://github.com/anjianshi/quick-args",
   "repository": "https://github.com/anjianshi/quick-args.git",
   "author": "anjianshi",
+  "license": "MIT",
   "main": "dist/index.js",
   "scripts": {
     "watch": "npm run clear && tsc --watch",
