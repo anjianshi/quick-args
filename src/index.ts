@@ -2,25 +2,25 @@ import * as path from 'path'
 
 
 interface Option<T> {
-  name: string,            // 名称
-  describe?: string,       // 参数描述
-  required?: boolean,      // 是否必须，默认视为否
-  default?: T,             // 默认值，仅在 required 为 false 时有意义
+  name: string,
+  describe?: string,
+  required?: boolean,      // default is false
+  default?: T,             // default value, only have means when `required` is false.
 }
 
 interface Flag extends Option<boolean> {
-  short?: string,          // 短名称
+  short?: string,          // short name
 }
 
 interface Named<T> extends Option<T> {
-  short?: string,               // 短名称
-  value?: string,               // 值的名称（显示在帮助文档里）
-  parse?: (raw: string) => T,   // 值格式化函数，抛出异常代表格式化失败
+  short?: string,               // short name
+  value?: string,               // value's name (shows in help message)
+  parse?: (raw: string) => T,   // value formatter. Should throw an error if format failed.
 }
 
-// 单个 positional 参数
+// a positional option
 interface Pos<T> extends Option<T> {
-  parse?: (raw: string) => T,  // 值格式化函数，抛出异常代表格式化失败
+  parse?: (raw: string) => T,  // value formatter. Should throw an error if format failed.
 }
 
 // 定义的 Positional 都匹配完成后，剩余 positional options 都会归入 Rest；Rest 只能有一个
