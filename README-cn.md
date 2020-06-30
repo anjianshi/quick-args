@@ -90,7 +90,7 @@ This is my cli.
 */
 quickArgs
   .program('my-cli')
-  .describe('This is my cli.)
+  .describe('This is my cli.')
 ```
 
 #### .parse(argv)
