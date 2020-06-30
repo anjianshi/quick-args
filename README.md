@@ -48,13 +48,13 @@ quickArgs
   .command(
     new Command({ name: 'cmd-2', describe: 'do something' })
       .command(
-        // 嵌套子命令
+        // nested sub-command
         new Command({ name: 'deeper-cmd', describe: 'do something', handler: (args) => {} })
           .pos({ name: 'pos-option' })
           .named({ name: 'named-option' })
       )
   )
-  .parse()   // 不再返回 args，变为触发对应的 handler
+  .parse()   // this will trigger handler instead of return args
 ```
 
 ### help message
