@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Command = void 0;
 const path = require("path");
 function combine(...arrayList) {
     return arrayList.reduce((result, arr) => [...result, ...arr], []);
