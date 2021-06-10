@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Command = void 0;
 const path = require("path");
@@ -98,32 +89,30 @@ class Command {
     }
     // ===== parse =====
     parse(argv) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // 拦截 -h 和 --help 参数
-            if (argv[0] === '-h' || argv[0] === '--help')
-                this.help();
-            // 其下有子命令
-            if (this.subCommands.length) {
-                if (!argv.length)
-                    this.help(1);
-                const name = argv[0];
-                const command = this.subCommands.find(c => c.name === name);
-                if (command)
-                    return command.parse(argv.slice(1));
-                console.error(`命令 "${name}" 不存在！`);
+        // 拦截 -h 和 --help 参数
+        if (argv[0] === '-h' || argv[0] === '--help')
+            this.help();
+        // 其下有子命令
+        if (this.subCommands.length) {
+            if (!argv.length)
                 this.help(1);
-            }
-            // 最底级子命令
-            if (this.superCommand) {
-                if (this.cmdHandler)
-                    yield this.cmdHandler(this.matchArgs(argv));
-                else
-                    console.warn(`命令 "${this.execPath}" 未设置 handler！`);
-                return null;
-            }
-            // 没有子命令的根节点
-            return this.matchArgs(argv);
-        });
+            const name = argv[0];
+            const command = this.subCommands.find(c => c.name === name);
+            if (command)
+                return command.parse(argv.slice(1));
+            console.error(`命令 "${name}" 不存在！`);
+            this.help(1);
+        }
+        // 最底级子命令
+        if (this.superCommand) {
+            if (this.cmdHandler)
+                this.cmdHandler(this.matchArgs(argv));
+            else
+                console.warn(`命令 "${this.execPath}" 未设置 handler！`);
+            return null;
+        }
+        // 没有子命令的根节点
+        return this.matchArgs(argv);
     }
     matchArgs(argv) {
         var _a;
@@ -292,12 +281,7 @@ class Program extends Command {
         return this;
     }
     parse() {
-        const _super = Object.create(null, {
-            parse: { get: () => super.parse }
-        });
-        return __awaiter(this, void 0, void 0, function* () {
-            return _super.parse.call(this, process.argv.slice(2));
-        });
+        return super.parse(process.argv.slice(2));
     }
 }
 exports.default = new Program();

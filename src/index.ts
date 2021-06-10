@@ -31,7 +31,7 @@ interface Rest<T> extends Option<T[]> {
 interface CommandDef<ArgT> {
   name: string,
   describe?: string,
-  handler?: (args: ArgT) => (void | Promise<void>),
+  handler?: (args: ArgT) => void,
 }
 
 type ParsedArguments = { [key: string]: any }
@@ -45,7 +45,7 @@ function combine<T>(...arrayList: T[][]) {
 class Command<ArgT> {
   name: string
   desc: string
-  cmdHandler: ((args: ArgT) => (void | Promise<void>)) | null
+  cmdHandler: ((args: ArgT) => void) | null
   superCommand: Command<any> | null = null    // 根节点此值为 null
 
   subCommands: Command<any>[] = []
@@ -126,7 +126,7 @@ class Command<ArgT> {
 
   // ===== parse =====
 
-  async parse(argv: string[]): Promise<ParsedArguments | null> {
+  parse(argv: string[]): ParsedArguments | null {
     // 拦截 -h 和 --help 参数
     if (argv[0] === '-h' || argv[0] === '--help') this.help()
 
@@ -144,7 +144,7 @@ class Command<ArgT> {
 
     // 最底级子命令
     if (this.superCommand) {
-      if (this.cmdHandler) await this.cmdHandler(this.matchArgs(argv))
+      if (this.cmdHandler) this.cmdHandler(this.matchArgs(argv))
       else console.warn(`命令 "${this.execPath}" 未设置 handler！`)
       return null
     }
@@ -323,7 +323,7 @@ class Program extends Command<ParsedArguments> {
     return this
   }
 
-  async parse() {
+  parse() {
     return super.parse(process.argv.slice(2))
   }
 }
