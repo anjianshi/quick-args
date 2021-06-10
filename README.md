@@ -21,7 +21,7 @@ There's four kind of components:
 ## Usage
 ```js
 import quickArgs from 'quick-args'
-const args = quickArgs
+quickArgs
   .program('my-cli')
   .describe('This is an example cli')
   .flag({ name: 'fff', short: 'f' })
@@ -29,6 +29,7 @@ const args = quickArgs
   .pos({ name: 'ppp' })
   .rest({ name: 'rrr' })
   .parse()
+  .then(args => {})   // .parse() returns a promise
 
 // run: my-cli -f --yyy=1 2 3 4 5
 // args: { fff: true, vvv: 1, ppp: 2, rest: [3,4,5] }

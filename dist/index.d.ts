@@ -21,7 +21,7 @@ interface Rest<T> extends Option<T[]> {
 interface CommandDef<ArgT> {
     name: string;
     describe?: string;
-    handler?: (args: ArgT) => void;
+    handler?: (args: ArgT) => (void | Promise<void>);
 }
 declare type ParsedArguments = {
     [key: string]: any;
@@ -29,7 +29,7 @@ declare type ParsedArguments = {
 declare class Command<ArgT> {
     name: string;
     desc: string;
-    cmdHandler: ((args: ArgT) => void) | null;
+    cmdHandler: ((args: ArgT) => (void | Promise<void>)) | null;
     superCommand: Command<any> | null;
     subCommands: Command<any>[];
     options: {
@@ -46,8 +46,8 @@ declare class Command<ArgT> {
     named<T>(def: Named<T>): this;
     pos<T>(def: Pos<T>): this;
     rest<T>(def: Rest<T>): this;
-    _confirmUnique<T>(opt: Flag | Named<T> | Pos<T> | Rest<T>): void;
-    parse(argv: string[]): ParsedArguments | null;
+    _confirmUnique<T>(opt: Flag | Named<T> | Pos<T> | Rest<T>): undefined;
+    parse(argv: string[]): Promise<ParsedArguments | null>;
     matchArgs(argv: string[]): ArgT;
     matchFlag(arg: string): Flag | null;
     matchNamed(arg: string, restArgs: string[]): [Named<any>, string] | [null, null];
@@ -62,7 +62,7 @@ declare class Program extends Command<ParsedArguments> {
     constructor();
     program(name: string): this;
     describe(desc: string): this;
-    parse(): ParsedArguments | null;
+    parse(): Promise<ParsedArguments | null>;
 }
 declare const _default: Program;
 export default _default;
