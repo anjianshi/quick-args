@@ -37,7 +37,7 @@ interface CommandDef<ArgT> {
 type ParsedArguments = { [key: string]: any }
 
 
-function combine(...arrayList: any[][]) {
+function combine<T>(...arrayList: T[][]) {
   return arrayList.reduce((result, arr) => [...result, ...arr], [])
 }
 
@@ -59,8 +59,8 @@ class Command<ArgT> {
 
   constructor(def: CommandDef<ArgT>) {
     this.name = def.name
-    this.desc = def.describe || ''
-    this.cmdHandler = def.handler || null
+    this.desc = def.describe ?? ''
+    this.cmdHandler = def.handler ?? null
   }
 
   // ===== register =====
@@ -110,16 +110,16 @@ class Command<ArgT> {
   }
   _confirmUnique<T>(opt: Flag | Named<T> | Pos<T> | Rest<T>) {
     const { flag, named, pos, rest } = this.options
-    if (combine(flag, named, pos, rest ? [rest] : []).find(o => o.name === opt.name)) return console.warn(`参数名称重复：${opt.name}`)
+    if (combine<Option<any>>(flag, named, pos, rest ? [rest] : []).find(o => o.name === opt.name)) return void console.warn(`参数名称重复：${opt.name}`)
     if ('short' in opt && opt.short
-      && combine(flag, named).find(o => o.short === opt.short)) return console.warn(`参数短名称重复：-${opt.short}`)
+      && combine(flag, named).find(o => o.short === opt.short)) return void console.warn(`参数短名称重复：-${opt.short}`)
 
     // 非 named 参数的 name 不能和 named 参数的 name 或 value 有重名
     // named 参数的 name 不能和 named 参数的 name 重名，但可以和 value 重名；value 不能和 value 重名，但可以和 name 重名。
     if ('value' in opt) {
-      if (named.find(o => o.value === opt.value)) return console.warn(`参数 "${opt.name}" 的 value "${opt.value}" 与其他 named option 的 value 重名`)
-      if (combine(flag, named, pos, rest ? [rest] : []).find(o => o.name === opt.value)) return console.warn(`参数 ${opt.name} 的 value "${opt.value}" 与其他 option 的 name 重名`)
-    } else if (named.find(o => o.value === opt.name)) return console.warn(`参数 "${opt.name}" 与其他 named option 的 value 重名`)
+      if (named.find(o => o.value === opt.value)) return void console.warn(`参数 "${opt.name}" 的 value "${opt.value ?? ''}" 与其他 named option 的 value 重名`)
+      if (combine<Option<any>>(flag, named, pos, rest ? [rest] : []).find(o => o.name === opt.value)) return void console.warn(`参数 ${opt.name} 的 value "${opt.value ?? ''}" 与其他 option 的 name 重名`)
+    } else if (named.find(o => o.value === opt.name)) return void console.warn(`参数 "${opt.name}" 与其他 named option 的 value 重名`)
 
     return undefined
   }
@@ -160,7 +160,7 @@ class Command<ArgT> {
 
     // 匹配 flag 和 named option
     while (argv.length) {
-      const item = argv.shift() as string
+      const item = argv.shift()!
       if (item.startsWith('-')) {
         const flag = this.matchFlag(item)
         if (flag) {
@@ -170,7 +170,7 @@ class Command<ArgT> {
 
         const [named, value] = this.matchNamed(item, argv)
         if (named) {
-          matched[named.value || named.name] = this.parseValue(value as string, named)
+          matched[(named.value ?? '') || named.name] = this.parseValue(value!, named)
           continue
         }
       }
@@ -182,23 +182,23 @@ class Command<ArgT> {
     // 匹配 positional option
     for (const pos of this.options.pos) {
       if (!posValues.length) break
-      matched[pos.name] = this.parseValue(posValues.shift() as string, pos)
+      matched[pos.name] = this.parseValue(posValues.shift()!, pos)
     }
 
     if (posValues.length) {
       // 余下的 posValues 归入 rest
       const rest = this.options.rest
       if (rest) {
-        matched[rest.name] = posValues.map(v => this.parseValue(v, rest))
+        matched[rest.name] = posValues.map(v => this.parseValue(v, rest) as string)
       } else {
         console.warn(`多余的 positional 参数：${posValues.join(' ')}`)
       }
     }
 
     // 检查必填；填充默认值
-    const allOptions = combine(this.options.flag, this.options.named, this.options.pos, this.options.rest ? [this.options.rest] : [])
+    const allOptions = combine<Flag | Named<any> | Pos<any> | Rest<any>>(this.options.flag, this.options.named, this.options.pos, this.options.rest ? [this.options.rest] : [])
     allOptions.forEach(o => {
-      const key = 'value' in o ? o.value : o.name
+      const key = 'value' in o ? (o.value ?? '') : o.name
       if (!(key in matched)) {
         if ('default' in o) matched[key] = o.default
         else if (o.required) {
@@ -232,7 +232,7 @@ class Command<ArgT> {
       const name = arg.slice(1)
       if (!restArgs.length) return [null, null] // 后续已没有值，无法成功匹配成 named
       for (const opt of this.options.named) {
-        if (opt.short === name) return [opt, restArgs.shift() as string]  // 这里直接修改 resetArgs 来提取 value 了，因为 value 不应再参与接下来的匹配
+        if (opt.short === name) return [opt, restArgs.shift()!]  // 这里直接修改 resetArgs 来提取 value 了，因为 value 不应再参与接下来的匹配
       }
     }
     return [null, null]
@@ -244,7 +244,7 @@ class Command<ArgT> {
     } catch (e) {
       console.error(`参数值格式化失败（${opt.name}）：${rawValue}`)
       console.error(e)
-      return this.help(1)
+      return this.help(1) as string
     }
   }
 
@@ -276,7 +276,7 @@ class Command<ArgT> {
     const decorate = (o: Option<any>, text: string) => (o.required ? text : `[${text}]`)
     const items = [
       ...flag.map(o => decorate(o, o.short ? `-${o.short}` : `--${o.name}`)),
-      ...named.map(o => decorate(o, o.short ? `-${o.short} ${o.value || 'value'}` : `--${o.name}=${o.value || 'value'}`)),
+      ...named.map(o => decorate(o, o.short ? `-${o.short} ${(o.value ?? '') || 'value'}` : `--${o.name}=${(o.value ?? '') || 'value'}`)),
       ...pos.map(o => decorate(o, o.name))
     ]
     if (rest) items.push(decorate(rest, `...${rest.name}`))
@@ -287,7 +287,7 @@ class Command<ArgT> {
     const { flag, named, pos, rest } = this.options
     const clear = <T>(list: (T|undefined|null)[]): T[] => list.filter(o => o) as T[]
     const flagName = (o: Flag) => clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(', ')
-    const namedName = (o: Named<any>) => `${clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(' ')}<${o.value || 'value'}>`
+    const namedName = (o: Named<any>) => `${clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(' ')}<${(o.value ?? '') || 'value'}>`
     const items = clear([
       ...flag.map(o => [o, flagName(o)]),
       ...named.map(o => [o, namedName(o)]),
@@ -297,7 +297,7 @@ class Command<ArgT> {
 
     const longestName = items.map(o => o[1]).reduce((longest, name) => Math.max(longest, name.length), 0)
     const space = (len: number): string => (len ? ` ${space(len-1)}` : '')
-    const fill = ([o, text]: [Option<any>, string]) => `  ${text}${space(longestName - text.length + 4)}${o.required ? '[required] ' : '' }${o.describe || ''}`
+    const fill = ([o, text]: [Option<any>, string]) => `  ${text}${space(longestName - text.length + 4)}${o.required ? '[required] ' : '' }${o.describe ?? ''}`
     return items.map(i => fill(i)).join('\n')
   }
 
