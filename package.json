@@ -1,12 +1,17 @@
 {
   "name": "quick-args",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Easy parse arguments",
   "homepage": "https://github.com/anjianshi/quick-args",
   "repository": "https://github.com/anjianshi/quick-args.git",
   "author": "anjianshi",
   "license": "MIT",
-  "keywords": ["argv", "getopt", "parser", "arguments"],
+  "keywords": [
+    "argv",
+    "getopt",
+    "parser",
+    "arguments"
+  ],
   "main": "dist/index.js",
   "scripts": {
     "watch": "npm run clear && tsc --watch",
@@ -15,12 +20,13 @@
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "@anjianshi/eslint-config": "^1.1.0",
-    "@types/node": "^15.12.2",
-    "eslint": "^7.28.0",
-    "typescript": "^4.3.2"
+    "@anjianshi/presets": "^1.2.1",
+    "@types/node": "^20.6.2",
+    "eslint": "^8.49.0",
+    "typescript": "^5.2.2"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
-  }
+  },
+  "prettier": "@anjianshi/presets/prettierrc"
 }

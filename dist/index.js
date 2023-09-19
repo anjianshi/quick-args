@@ -1,24 +1,49 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Command = void 0;
-const path = require("path");
+exports.Program = exports.Command = void 0;
+const path = __importStar(require("node:path"));
 function combine(...arrayList) {
     return arrayList.reduce((result, arr) => [...result, ...arr], []);
 }
 class Command {
+    name;
+    desc;
+    cmdHandler;
+    superCommand = null; // 根节点此值为 null
+    subCommands = [];
+    options = {
+        flag: [],
+        named: [],
+        pos: [],
+        rest: null,
+    };
     constructor(def) {
-        var _a, _b;
-        this.superCommand = null; // 根节点此值为 null
-        this.subCommands = [];
-        this.options = {
-            flag: [],
-            named: [],
-            pos: [],
-            rest: null
-        };
         this.name = def.name;
-        this.desc = (_a = def.describe) !== null && _a !== void 0 ? _a : '';
-        this.cmdHandler = (_b = def.handler) !== null && _b !== void 0 ? _b : null;
+        this.desc = def.describe ?? '';
+        this.cmdHandler = def.handler ?? null;
     }
     // ===== register =====
     command(subCommand) {
@@ -36,17 +61,17 @@ class Command {
     flag(def) {
         // name 为一个字符时，自动设为 short
         if (def.name.length === 1 && !def.short)
-            def = Object.assign(Object.assign({}, def), { short: def.name });
+            def = { ...def, short: def.name };
         this._confirmUnique(def);
         // flag 不可设为必填、默认值固定为 false
-        def = Object.assign(Object.assign({}, def), { required: false, default: false });
+        def = { ...def, required: false, default: false };
         this.options.flag.push(def);
         return this;
     }
     named(def) {
         // name 为一个字符时，自动设为 short
         if (def.name.length === 1 && !def.short)
-            def = Object.assign(Object.assign({}, def), { short: def.name });
+            def = { ...def, short: def.name };
         this._confirmUnique(def);
         this.options.named.push(def);
         return this;
@@ -55,7 +80,7 @@ class Command {
         this._confirmUnique(def);
         // pos 参数默认 required
         if (!('required' in def))
-            def = Object.assign(Object.assign({}, def), { required: true });
+            def = { ...def, required: true };
         this.options.pos.push(def);
         return this;
     }
@@ -63,25 +88,25 @@ class Command {
         this._confirmUnique(def);
         // rest 参数默认 required
         if (!('required' in def))
-            def = Object.assign(Object.assign({}, def), { required: true });
+            def = { ...def, required: true };
         this.options.rest = def;
         return this;
     }
     _confirmUnique(opt) {
-        var _a, _b;
         const { flag, named, pos, rest } = this.options;
         if (combine(flag, named, pos, rest ? [rest] : []).find(o => o.name === opt.name))
             return void console.warn(`参数名称重复：${opt.name}`);
-        if ('short' in opt && opt.short
-            && combine(flag, named).find(o => o.short === opt.short))
+        if ('short' in opt &&
+            (opt.short ?? '') &&
+            combine(flag, named).find(o => o.short === opt.short))
             return void console.warn(`参数短名称重复：-${opt.short}`);
         // 非 named 参数的 name 不能和 named 参数的 name 或 value 有重名
         // named 参数的 name 不能和 named 参数的 name 重名，但可以和 value 重名；value 不能和 value 重名，但可以和 name 重名。
         if ('value' in opt) {
             if (named.find(o => o.value === opt.value))
-                return void console.warn(`参数 "${opt.name}" 的 value "${(_a = opt.value) !== null && _a !== void 0 ? _a : ''}" 与其他 named option 的 value 重名`);
+                return void console.warn(`参数 "${opt.name}" 的 value "${opt.value ?? ''}" 与其他 named option 的 value 重名`);
             if (combine(flag, named, pos, rest ? [rest] : []).find(o => o.name === opt.value))
-                return void console.warn(`参数 ${opt.name} 的 value "${(_b = opt.value) !== null && _b !== void 0 ? _b : ''}" 与其他 option 的 name 重名`);
+                return void console.warn(`参数 ${opt.name} 的 value "${opt.value ?? ''}" 与其他 option 的 name 重名`);
         }
         else if (named.find(o => o.value === opt.name))
             return void console.warn(`参数 "${opt.name}" 与其他 named option 的 value 重名`);
@@ -115,7 +140,6 @@ class Command {
         return this.matchArgs(argv);
     }
     matchArgs(argv) {
-        var _a;
         const matched = {};
         const posValues = []; // positional 参数值先收集到一起，等 flag、named option 匹配完再处理
         argv = [...argv];
@@ -130,7 +154,7 @@ class Command {
                 }
                 const [named, value] = this.matchNamed(item, argv);
                 if (named) {
-                    matched[((_a = named.value) !== null && _a !== void 0 ? _a : '') || named.name] = this.parseValue(value, named);
+                    matched[(named.value ?? '') || named.name] = this.parseValue(value, named);
                     continue;
                 }
             }
@@ -156,8 +180,7 @@ class Command {
         // 检查必填；填充默认值
         const allOptions = combine(this.options.flag, this.options.named, this.options.pos, this.options.rest ? [this.options.rest] : []);
         allOptions.forEach(o => {
-            var _a;
-            const key = 'value' in o ? ((_a = o.value) !== null && _a !== void 0 ? _a : '') : o.name;
+            const key = 'value' in o ? o.value ?? '' : o.name;
             if (!(key in matched)) {
                 if ('default' in o)
                     matched[key] = o.default;
@@ -178,7 +201,8 @@ class Command {
         return null;
     }
     matchNamed(arg, restArgs) {
-        if (arg.startsWith('--')) { // --name=value
+        if (arg.startsWith('--')) {
+            // --name=value
             const splitIdx = arg.indexOf('=');
             if (splitIdx === -1)
                 return [null, null]; // 未匹配到等号，不是 named 参数
@@ -189,7 +213,8 @@ class Command {
                     return [opt, value];
             }
         }
-        else { // -n value
+        else {
+            // -n value
             const name = arg.slice(1);
             if (!restArgs.length)
                 return [null, null]; // 后续已没有值，无法成功匹配成 named
@@ -238,8 +263,10 @@ class Command {
         const decorate = (o, text) => (o.required ? text : `[${text}]`);
         const items = [
             ...flag.map(o => decorate(o, o.short ? `-${o.short}` : `--${o.name}`)),
-            ...named.map(o => { var _a, _b; return decorate(o, o.short ? `-${o.short} ${((_a = o.value) !== null && _a !== void 0 ? _a : '') || 'value'}` : `--${o.name}=${((_b = o.value) !== null && _b !== void 0 ? _b : '') || 'value'}`); }),
-            ...pos.map(o => decorate(o, o.name))
+            ...named.map(o => decorate(o, o.short
+                ? `-${o.short} ${(o.value ?? '') || 'value'}`
+                : `--${o.name}=${(o.value ?? '') || 'value'}`)),
+            ...pos.map(o => decorate(o, o.name)),
         ];
         if (rest)
             items.push(decorate(rest, `...${rest.name}`));
@@ -249,16 +276,18 @@ class Command {
         const { flag, named, pos, rest } = this.options;
         const clear = (list) => list.filter(o => o);
         const flagName = (o) => clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(', ');
-        const namedName = (o) => { var _a; return `${clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(' ')}<${((_a = o.value) !== null && _a !== void 0 ? _a : '') || 'value'}>`; };
+        const namedName = (o) => `${clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(' ')}<${(o.value ?? '') || 'value'}>`;
         const items = clear([
             ...flag.map(o => [o, flagName(o)]),
             ...named.map(o => [o, namedName(o)]),
             ...pos.map(o => [o, o.name]),
-            rest && [rest, `...${rest.name}`]
+            rest && [rest, `...${rest.name}`],
         ]);
-        const longestName = items.map(o => o[1]).reduce((longest, name) => Math.max(longest, name.length), 0);
+        const longestName = items
+            .map(o => o[1])
+            .reduce((longest, name) => Math.max(longest, name.length), 0);
         const space = (len) => (len ? ` ${space(len - 1)}` : '');
-        const fill = ([o, text]) => { var _a; return `  ${text}${space(longestName - text.length + 4)}${o.required ? '[required] ' : ''}${(_a = o.describe) !== null && _a !== void 0 ? _a : ''}`; };
+        const fill = ([o, text]) => `  ${text}${space(longestName - text.length + 4)}${o.required ?? false ? '[required] ' : ''}${o.describe ?? ''}`;
         return items.map(i => fill(i)).join('\n');
     }
     get commandDescribes() {
@@ -269,7 +298,7 @@ exports.Command = Command;
 class Program extends Command {
     constructor() {
         super({
-            name: process.env._ ? path.basename(process.env._) : process.argv[1],
+            name: (process.env._ ?? '') ? path.basename(process.env._) : process.argv[1] ?? '',
         });
     }
     program(name) {
@@ -284,4 +313,6 @@ class Program extends Command {
         return super.parse(process.argv.slice(2));
     }
 }
-exports.default = new Program();
+exports.Program = Program;
+const defaultProgram = new Program();
+exports.default = defaultProgram;

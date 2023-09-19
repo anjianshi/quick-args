@@ -1,60 +1,62 @@
-import * as path from 'path'
-
+import * as path from 'node:path'
 
 interface Option<T> {
-  name: string,
-  describe?: string,
-  required?: boolean,      // default is false
-  default?: T,             // default value, only have means when `required` is false.
+  name: string
+  describe?: string
+  required?: boolean // default is false
+  default?: T // default value, only have means when `required` is false.
 }
 
 interface Flag extends Option<boolean> {
-  short?: string,          // short name
+  short?: string // short name
 }
 
 interface Named<T> extends Option<T> {
-  short?: string,               // short name
-  value?: string,               // value's name (shows in help message)
-  parse?: (raw: string) => T,   // value formatter. Should throw an error if format failed.
+  short?: string // short name
+  value?: string // value's name (shows in help message)
+  parse?: (raw: string) => T // value formatter. Should throw an error if format failed.
 }
 
 // a positional option
 interface Pos<T> extends Option<T> {
-  parse?: (raw: string) => T,  // value formatter. Should throw an error if format failed.
+  parse?: (raw: string) => T // value formatter. Should throw an error if format failed.
 }
 
 // 定义的 Positional 都匹配完成后，剩余 positional options 都会归入 Rest；Rest 只能有一个
 interface Rest<T> extends Option<T[]> {
-  parse?: (raw: string) => T,  // 值格式化函数，抛出异常代表格式化失败
+  parse?: (raw: string) => T // 值格式化函数，抛出异常代表格式化失败
 }
 
 interface CommandDef<ArgT> {
-  name: string,
-  describe?: string,
-  handler?: (args: ArgT) => void,
+  name: string
+  describe?: string
+  handler?: (args: ArgT) => void
 }
 
-type ParsedArguments = { [key: string]: any }
-
+type ParsedArguments = { [key: string]: unknown }
 
 function combine<T>(...arrayList: T[][]) {
   return arrayList.reduce((result, arr) => [...result, ...arr], [])
 }
 
-
 class Command<ArgT> {
   name: string
   desc: string
   cmdHandler: ((args: ArgT) => void) | null
-  superCommand: Command<any> | null = null    // 根节点此值为 null
+  superCommand: Command<unknown> | null = null // 根节点此值为 null
 
-  subCommands: Command<any>[] = []
+  subCommands: Command<unknown>[] = []
 
-  options: { flag: Flag[], named: Named<any>[], pos: Pos<any>[], rest: Rest<any> | null } = {
+  options: {
+    flag: Flag[]
+    named: Named<unknown>[]
+    pos: Pos<unknown>[]
+    rest: Rest<unknown> | null
+  } = {
     flag: [],
     named: [],
     pos: [],
-    rest: null
+    rest: null,
   }
 
   constructor(def: CommandDef<ArgT>) {
@@ -65,12 +67,12 @@ class Command<ArgT> {
 
   // ===== register =====
 
-  command(subCommand: Command<any>) {
+  command(subCommand: Command<unknown>) {
     this.subCommands.push(subCommand)
-    subCommand._registerToSuper(this)
+    subCommand._registerToSuper(this as Command<unknown>)
     return this
   }
-  _registerToSuper(superCommand: Command<any>) {
+  _registerToSuper(superCommand: Command<unknown>) {
     this.superCommand = superCommand
   }
   handler(handler: (args: ArgT) => void) {
@@ -110,16 +112,34 @@ class Command<ArgT> {
   }
   _confirmUnique<T>(opt: Flag | Named<T> | Pos<T> | Rest<T>) {
     const { flag, named, pos, rest } = this.options
-    if (combine<Option<any>>(flag, named, pos, rest ? [rest] : []).find(o => o.name === opt.name)) return void console.warn(`参数名称重复：${opt.name}`)
-    if ('short' in opt && opt.short
-      && combine(flag, named).find(o => o.short === opt.short)) return void console.warn(`参数短名称重复：-${opt.short}`)
+    if (
+      combine<Option<unknown>>(flag, named, pos, rest ? [rest] : []).find(o => o.name === opt.name)
+    )
+      return void console.warn(`参数名称重复：${opt.name}`)
+    if (
+      'short' in opt &&
+      (opt.short ?? '') &&
+      combine(flag, named as unknown as Flag[]).find(o => o.short === opt.short)
+    )
+      return void console.warn(`参数短名称重复：-${opt.short}`)
 
     // 非 named 参数的 name 不能和 named 参数的 name 或 value 有重名
     // named 参数的 name 不能和 named 参数的 name 重名，但可以和 value 重名；value 不能和 value 重名，但可以和 name 重名。
     if ('value' in opt) {
-      if (named.find(o => o.value === opt.value)) return void console.warn(`参数 "${opt.name}" 的 value "${opt.value ?? ''}" 与其他 named option 的 value 重名`)
-      if (combine<Option<any>>(flag, named, pos, rest ? [rest] : []).find(o => o.name === opt.value)) return void console.warn(`参数 ${opt.name} 的 value "${opt.value ?? ''}" 与其他 option 的 name 重名`)
-    } else if (named.find(o => o.value === opt.name)) return void console.warn(`参数 "${opt.name}" 与其他 named option 的 value 重名`)
+      if (named.find(o => o.value === opt.value))
+        return void console.warn(
+          `参数 "${opt.name}" 的 value "${opt.value ?? ''}" 与其他 named option 的 value 重名`
+        )
+      if (
+        combine<Option<unknown>>(flag, named, pos, rest ? [rest] : []).find(
+          o => o.name === opt.value
+        )
+      )
+        return void console.warn(
+          `参数 ${opt.name} 的 value "${opt.value ?? ''}" 与其他 option 的 name 重名`
+        )
+    } else if (named.find(o => o.value === opt.name))
+      return void console.warn(`参数 "${opt.name}" 与其他 named option 的 value 重名`)
 
     return undefined
   }
@@ -150,12 +170,12 @@ class Command<ArgT> {
     }
 
     // 没有子命令的根节点
-    return this.matchArgs(argv)
+    return this.matchArgs(argv) as ParsedArguments | null
   }
 
   matchArgs(argv: string[]): ArgT {
     const matched: ParsedArguments = {}
-    const posValues = []  // positional 参数值先收集到一起，等 flag、named option 匹配完再处理
+    const posValues = [] // positional 参数值先收集到一起，等 flag、named option 匹配完再处理
     argv = [...argv]
 
     // 匹配 flag 和 named option
@@ -170,7 +190,7 @@ class Command<ArgT> {
 
         const [named, value] = this.matchNamed(item, argv)
         if (named) {
-          matched[(named.value ?? '') || named.name] = this.parseValue(value!, named)
+          matched[(named.value ?? '') || named.name] = this.parseValue(value, named)
           continue
         }
       }
@@ -196,9 +216,14 @@ class Command<ArgT> {
     }
 
     // 检查必填；填充默认值
-    const allOptions = combine<Flag | Named<any> | Pos<any> | Rest<any>>(this.options.flag, this.options.named, this.options.pos, this.options.rest ? [this.options.rest] : [])
+    const allOptions = combine<Flag | Named<unknown> | Pos<unknown> | Rest<unknown>>(
+      this.options.flag,
+      this.options.named,
+      this.options.pos,
+      this.options.rest ? [this.options.rest] : []
+    )
     allOptions.forEach(o => {
-      const key = 'value' in o ? (o.value ?? '') : o.name
+      const key = 'value' in o ? o.value ?? '' : o.name
       if (!(key in matched)) {
         if ('default' in o) matched[key] = o.default
         else if (o.required) {
@@ -218,21 +243,23 @@ class Command<ArgT> {
     }
     return null
   }
-  matchNamed(arg: string, restArgs: string[]): [Named<any>, string] | [null, null] {
-    if (arg.startsWith('--')) { // --name=value
+  matchNamed(arg: string, restArgs: string[]): [Named<unknown>, string] | [null, null] {
+    if (arg.startsWith('--')) {
+      // --name=value
       const splitIdx = arg.indexOf('=')
-      if (splitIdx === -1) return [null, null]  // 未匹配到等号，不是 named 参数
+      if (splitIdx === -1) return [null, null] // 未匹配到等号，不是 named 参数
 
       const name = arg.slice(2, splitIdx)
       const value = arg.slice(splitIdx + 1)
       for (const opt of this.options.named) {
         if (opt.name === name) return [opt, value]
       }
-    } else {  // -n value
+    } else {
+      // -n value
       const name = arg.slice(1)
       if (!restArgs.length) return [null, null] // 后续已没有值，无法成功匹配成 named
       for (const opt of this.options.named) {
-        if (opt.short === name) return [opt, restArgs.shift()!]  // 这里直接修改 resetArgs 来提取 value 了，因为 value 不应再参与接下来的匹配
+        if (opt.short === name) return [opt, restArgs.shift()!] // 这里直接修改 resetArgs 来提取 value 了，因为 value 不应再参与接下来的匹配
       }
     }
     return [null, null]
@@ -248,10 +275,9 @@ class Command<ArgT> {
     }
   }
 
-
   // ===== help =====
 
-  help(exitCode=0): any {
+  help(exitCode = 0): unknown {
     console.log('')
     if (!this.subCommands.length) {
       console.log(`Usage: ${this.execPath} ${this.optionOverview}`)
@@ -273,11 +299,18 @@ class Command<ArgT> {
 
   get optionOverview() {
     const { flag, named, pos, rest } = this.options
-    const decorate = (o: Option<any>, text: string) => (o.required ? text : `[${text}]`)
+    const decorate = (o: Option<unknown>, text: string) => (o.required ? text : `[${text}]`)
     const items = [
       ...flag.map(o => decorate(o, o.short ? `-${o.short}` : `--${o.name}`)),
-      ...named.map(o => decorate(o, o.short ? `-${o.short} ${(o.value ?? '') || 'value'}` : `--${o.name}=${(o.value ?? '') || 'value'}`)),
-      ...pos.map(o => decorate(o, o.name))
+      ...named.map(o =>
+        decorate(
+          o,
+          o.short
+            ? `-${o.short} ${(o.value ?? '') || 'value'}`
+            : `--${o.name}=${(o.value ?? '') || 'value'}`
+        )
+      ),
+      ...pos.map(o => decorate(o, o.name)),
     ]
     if (rest) items.push(decorate(rest, `...${rest.name}`))
     return items.join(' ')
@@ -285,19 +318,28 @@ class Command<ArgT> {
 
   get optionDescribes() {
     const { flag, named, pos, rest } = this.options
-    const clear = <T>(list: (T|undefined|null)[]): T[] => list.filter(o => o) as T[]
-    const flagName = (o: Flag) => clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(', ')
-    const namedName = (o: Named<any>) => `${clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(' ')}<${(o.value ?? '') || 'value'}>`
+    const clear = <T>(list: (T | undefined | null)[]): T[] => list.filter(o => o) as T[]
+    const flagName = (o: Flag) =>
+      clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(', ')
+    const namedName = (o: Named<unknown>) =>
+      `${clear([o.short && `-${o.short}`, o.name && `--${o.name}`]).join(' ')}<${
+        (o.value ?? '') || 'value'
+      }>`
     const items = clear([
       ...flag.map(o => [o, flagName(o)]),
       ...named.map(o => [o, namedName(o)]),
       ...pos.map(o => [o, o.name]),
-      rest && [rest, `...${rest.name}`]
-    ]) as [Option<any>, string][]
+      rest && [rest, `...${rest.name}`],
+    ]) as [Option<unknown>, string][]
 
-    const longestName = items.map(o => o[1]).reduce((longest, name) => Math.max(longest, name.length), 0)
-    const space = (len: number): string => (len ? ` ${space(len-1)}` : '')
-    const fill = ([o, text]: [Option<any>, string]) => `  ${text}${space(longestName - text.length + 4)}${o.required ? '[required] ' : '' }${o.describe ?? ''}`
+    const longestName = items
+      .map(o => o[1])
+      .reduce((longest, name) => Math.max(longest, name.length), 0)
+    const space = (len: number): string => (len ? ` ${space(len - 1)}` : '')
+    const fill = ([o, text]: [Option<unknown>, string]) =>
+      `  ${text}${space(longestName - text.length + 4)}${o.required ?? false ? '[required] ' : ''}${
+        o.describe ?? ''
+      }`
     return items.map(i => fill(i)).join('\n')
   }
 
@@ -309,7 +351,7 @@ class Command<ArgT> {
 class Program extends Command<ParsedArguments> {
   constructor() {
     super({
-      name: process.env._ ? path.basename(process.env._) : process.argv[1],
+      name: process.env._ ?? '' ? path.basename(process.env._!) : process.argv[1] ?? '',
     })
   }
 
@@ -328,6 +370,7 @@ class Program extends Command<ParsedArguments> {
   }
 }
 
+const defaultProgram = new Program()
+export default defaultProgram
 
-export default new Program()
-export { Command, ParsedArguments as Arguments }
+export { type ParsedArguments as Arguments, Command, Program }

@@ -23,24 +23,24 @@ interface CommandDef<ArgT> {
     describe?: string;
     handler?: (args: ArgT) => void;
 }
-declare type ParsedArguments = {
-    [key: string]: any;
+type ParsedArguments = {
+    [key: string]: unknown;
 };
 declare class Command<ArgT> {
     name: string;
     desc: string;
     cmdHandler: ((args: ArgT) => void) | null;
-    superCommand: Command<any> | null;
-    subCommands: Command<any>[];
+    superCommand: Command<unknown> | null;
+    subCommands: Command<unknown>[];
     options: {
         flag: Flag[];
-        named: Named<any>[];
-        pos: Pos<any>[];
-        rest: Rest<any> | null;
+        named: Named<unknown>[];
+        pos: Pos<unknown>[];
+        rest: Rest<unknown> | null;
     };
     constructor(def: CommandDef<ArgT>);
-    command(subCommand: Command<any>): this;
-    _registerToSuper(superCommand: Command<any>): void;
+    command(subCommand: Command<unknown>): this;
+    _registerToSuper(superCommand: Command<unknown>): void;
     handler(handler: (args: ArgT) => void): this;
     flag(def: Flag): this;
     named<T>(def: Named<T>): this;
@@ -50,9 +50,9 @@ declare class Command<ArgT> {
     parse(argv: string[]): ParsedArguments | null;
     matchArgs(argv: string[]): ArgT;
     matchFlag(arg: string): Flag | null;
-    matchNamed(arg: string, restArgs: string[]): [Named<any>, string] | [null, null];
+    matchNamed(arg: string, restArgs: string[]): [Named<unknown>, string] | [null, null];
     parseValue<T>(rawValue: string, opt: Named<T> | Pos<T> | Rest<T>): T | string;
-    help(exitCode?: number): any;
+    help(exitCode?: number): unknown;
     get execPath(): string;
     get optionOverview(): string;
     get optionDescribes(): string;
@@ -64,6 +64,6 @@ declare class Program extends Command<ParsedArguments> {
     describe(desc: string): this;
     parse(): ParsedArguments | null;
 }
-declare const _default: Program;
-export default _default;
-export { Command, ParsedArguments as Arguments };
+declare const defaultProgram: Program;
+export default defaultProgram;
+export { type ParsedArguments as Arguments, Command, Program };
